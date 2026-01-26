@@ -41,7 +41,6 @@ void mcpwm_gpio_init(void) {
   // would normally loop 3 times but just testing with 1 phase for now
   for (int i = 0; i < 1; i++) {
     // Operator, responsible for generating PWM waveforms
-    mcpwm_oper_handle_t oper;
     mcpwm_operator_config_t operator_config = { .group_id = 0 };
     mcpwm_new_operator(&operator_config, &operators[i]);
 
@@ -64,16 +63,21 @@ void mcpwm_gpio_init(void) {
     mcpwm_generator_set_action_on_timer_event(gen_h, MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_HIGH));
     mcpwm_generator_set_action_on_compare_event(gen_h, MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, comparators[i], MCPWM_GEN_ACTION_LOW));
 
+    mcpwm_generator_set_action_on_timer_event(gen_l, MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_HIGH));
+    mcpwm_generator_set_action_on_compare_event(gen_l, MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, comparators[i], MCPWM_GEN_ACTION_LOW));
+
     // dead time
     mcpwm_dead_time_config_t dt_config = {};
     dt_config.posedge_delay_ticks = DEAD_TIME_TICKS;
-    dt_config.negedge_delay_ticks = DEAD_TIME_TICKS;
 
     // apply config to highside
     mcpwm_generator_set_dead_time(gen_h, gen_h, &dt_config);
 
-    // make low side inverse of high side and apply config
+    // apply config to lowside
+    dt_config.negedge_delay_ticks = DEAD_TIME_TICKS;
     dt_config.flags.invert_output = true; 
+
+    // make low side inverse of high side and apply config
     mcpwm_generator_set_dead_time(gen_h, gen_l, &dt_config);
   }
 
