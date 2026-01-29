@@ -32,6 +32,4 @@ It does **not** yet include:
 
 These features will be added as the project progresses.
 
-![alt text][logo]
-
-[logo]: https://github.com/adam-p/markdown-here/raw/master/src/common/images/icon48.png](https://github.com/adriaanjj/3-Phase-Motor-Controller/blob/main/assets/schematic.png
+<img width="1723" height="735" alt="schematic" src="https://github.com/user-attachments/assets/9d565e9a-ba33-44bc-ace0-fef0ade70932" />
