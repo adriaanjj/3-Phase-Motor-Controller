@@ -12,7 +12,7 @@
 
 #define DEAD_TIME_TICKS 10
 #define MCPWM_HZ 8000000
-#define PWM_MAX 1000
+#define PWM_MAX 2000
 
 // sine table
 uint32_t sin_table[LUT_SIZE];
@@ -28,9 +28,12 @@ mcpwm_cmpr_handle_t comparators[3];
 
 void generate_sine_table()
 {
+    uint32_t internal_peak = PWM_MAX / 2;
+    uint32_t amplitude = internal_peak / 2;
+
     for (uint32_t i = 0; i < LUT_SIZE; i++) {
-        sin_table[i] = (uint32_t)((sin((double)i * PI / 180) * (PWM_MAX / 2)) + (PWM_MAX / 2));
-    }
+        sin_table[i] = (uint32_t)((sin((double)i * PI / 180) * amplitude) + amplitude);
+    } 
 }
 
 static bool IRAM_ATTR on_timer(mcpwm_timer_handle_t t, const mcpwm_timer_event_data_t *edata, void *user_data)
@@ -56,7 +59,7 @@ void mcpwm_gpio_init(void)
     .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
     .resolution_hz = MCPWM_HZ,
     .count_mode = MCPWM_TIMER_COUNT_MODE_UP_DOWN,
-    .period_ticks = 2000,
+    .period_ticks = PWM_MAX,
   };
   ESP_ERROR_CHECK(mcpwm_new_timer(&timer_config, &timer));
 
@@ -87,21 +90,16 @@ void mcpwm_gpio_init(void)
     mcpwm_new_generator(operators[i], &generator_config, &gen_l);
 
     // Set HIGH when timer is 0 and starting to count UP
-    mcpwm_generator_set_action_on_timer_event(gen_h, 
-        MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_HIGH));
+    ESP_ERROR_CHECK(mcpwm_generator_set_action_on_timer_event(gen_h, 
+        MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_HIGH)));
 
     // Set LOW when timer hits match while counting UP
-    mcpwm_generator_set_action_on_compare_event(gen_h, 
-        MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, comparators[i], MCPWM_GEN_ACTION_LOW));
+    ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(gen_h, 
+        MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, comparators[i], MCPWM_GEN_ACTION_LOW)));
 
     // Set HIGH when timer hits match while counting DOWN
-    mcpwm_generator_set_action_on_compare_event(gen_h, 
-        MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_DOWN, comparators[i], MCPWM_GEN_ACTION_HIGH));
-
-    // Set LOW when timer is 0 after counting DOWN
-    mcpwm_generator_set_action_on_timer_event(gen_h, 
-        MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_DOWN, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_LOW));
-
+    ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(gen_h, 
+        MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_DOWN, comparators[i], MCPWM_GEN_ACTION_HIGH)));
 
     // Dead time
     mcpwm_dead_time_config_t dt_config = {};
@@ -116,20 +114,21 @@ void mcpwm_gpio_init(void)
 
     // Make low side inverse of high side and apply config
     mcpwm_generator_set_dead_time(gen_h, gen_l, &dt_config);
-
-    mcpwm_timer_event_callbacks_t cbs = {
-      .on_empty = on_timer,   // TEZ (count==0)
-    };
-    mcpwm_timer_register_event_callbacks(timer, &cbs, NULL);
   }
+
+  mcpwm_timer_event_callbacks_t cbs = {
+    .on_empty = on_timer,   // TEZ (count==0)
+  };
+  mcpwm_timer_register_event_callbacks(timer, &cbs, NULL);
 
   mcpwm_timer_enable(timer);
   mcpwm_timer_start_stop(timer, MCPWM_TIMER_START_NO_STOP);
 }
 
-
 void setup()
 {
+  Serial.begin(115200);
+  Serial.println("Reset yup");
   generate_sine_table();
   mcpwm_gpio_init();
 }
